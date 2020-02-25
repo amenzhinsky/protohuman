@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+message Test {
+    enum State {
+        UNKNOWN = 0;
+        KNOWN   = 1;
+    }
+
+    message Inner {
+        bool enabled = 1;
+    }
+
+    uint32 uint32_f = 1;
+    repeated string string_slice = 2;
+    map<string, int32> kv = 3;
+    bytes buf = 4;
+    State state = 5;
+    oneof oneofer {
+        string one = 6;
+        string two = 7;
+    }
+    Inner inner = 8;
+}
+
