@@ -13,11 +13,18 @@ func Marshal(w io.Writer, msg proto.Message) error {
 	return (&Marshaller{}).Marshal(w, msg)
 }
 
-type Marshaller struct{}
+func MarshalCompact(w io.Writer, msg proto.Message) error {
+	return (&Marshaller{Compact: true}).Marshal(w, msg)
+}
+
+type Marshaller struct {
+	Compact bool
+	indent  int
+}
 
 func (m *Marshaller) Marshal(w io.Writer, msg proto.Message) error {
 	wr := &writer{w: w}
-	encodeMessage(wr, msg, false)
+	m.message(wr, msg, false)
 	return wr.err
 }
 
@@ -35,7 +42,15 @@ func (w *writer) write(s string) {
 	}
 }
 
-func encodeMessage(w *writer, v interface{}, isInterface bool) {
+func (m *Marshaller) nl(w *writer) {
+	if m.Compact {
+		return
+	}
+	w.write("\n")
+	w.write(strings.Repeat("\t", m.indent))
+}
+
+func (m *Marshaller) message(w *writer, v interface{}, isInterface bool) {
 	if v == nil {
 		w.write("nil")
 		return
@@ -52,6 +67,8 @@ func encodeMessage(w *writer, v interface{}, isInterface bool) {
 		w.write("(")
 	} else {
 		w.write("{")
+		m.indent++
+		m.nl(w)
 	}
 	for i := 0; i < val.NumField(); i++ {
 		name := fieldName(typ.Field(i))
@@ -59,15 +76,23 @@ func encodeMessage(w *writer, v interface{}, isInterface bool) {
 			continue
 		}
 		if i != 0 {
-			w.write(", ")
+			w.write(",")
+			if !m.Compact {
+				m.nl(w)
+			}
 		}
 		w.write(name)
 		w.write(":")
-		encodeValue(w, val.Field(i))
+		if !m.Compact {
+			w.write(" ")
+		}
+		m.value(w, val.Field(i))
 	}
 	if isInterface {
 		w.write(")")
 	} else {
+		m.indent--
+		m.nl(w)
 		w.write("}")
 	}
 }
@@ -90,24 +115,27 @@ func fieldName(typ reflect.StructField) string {
 	return ""
 }
 
-func encodeValue(w *writer, val reflect.Value) {
+func (m *Marshaller) value(w *writer, val reflect.Value) {
 	switch val.Kind() {
 	//case reflect.Map:
 	case reflect.Slice:
 		w.write("[")
 		for i := 0; i < val.Len(); i++ {
 			if i != 0 {
-				w.write(", ")
+				w.write(",")
+				if !m.Compact {
+					w.write(" ")
+				}
 			}
-			encodeValue(w, val.Index(i))
+			m.value(w, val.Index(i))
 		}
 		w.write("]")
 	case reflect.String:
 		w.write(fmt.Sprintf("%q", val.Interface()))
 	case reflect.Ptr:
-		encodeMessage(w, val.Interface().(proto.Message), false)
+		m.message(w, val.Interface().(proto.Message), false)
 	case reflect.Interface:
-		encodeMessage(w, val.Interface(), true)
+		m.message(w, val.Interface(), true)
 	default:
 		w.write(fmt.Sprintf("%v", val.Interface()))
 	}
