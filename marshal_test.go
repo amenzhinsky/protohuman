@@ -4,8 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/amenzhinsky/vplay/encode/testdata"
-	"github.com/golang/protobuf/proto"
+	"github.com/amenzhinsky/protohuman/testdata"
 )
 
 func TestEncode(t *testing.T) {
@@ -19,6 +18,4 @@ func TestEncode(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-
-	proto.MarshalText()
 }
